@@ -7,11 +7,12 @@
     <style>
         body { 
             margin: 0; 
-            background-color: #f7f4d3; 
+            background-color: #d28c46; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            min-height: 100vh; 
+            height: 100vh; /* Fixed height for viewport */
+            width: 100vw;
             overflow: hidden; 
             font-family: 'Arial Rounded MT Bold', sans-serif;
         }
@@ -19,30 +20,31 @@
         #scaler {
             display: flex;
             justify-content: center;
-            align-items: flex-start;
-            gap: 30px; 
-            padding: 20px;
-            transform-origin: top center;
+            align-items: center;
+            gap: 50px; 
+            transform-origin: center center; /* Ensure scaling happens from the middle */
+            transition: transform 0.1s ease-out;
+            will-change: transform;
         }
 
         #game-container { 
             position: relative; 
-            border: 12px solid #8b5a2b; 
+            border: 12px solid #f9e4a0; 
             border-top: none;
             background: rgba(255, 255, 255, 0.4);
             border-radius: 0 0 30px 30px;
             overflow: hidden; 
             width: 500px; 
             height: 750px;
+            flex-shrink: 0; /* Prevent the container from shrinking */
         }
 
-        /* Danger Line - Same style and color as drop line */
         #danger-line {
             position: absolute;
             top: 95px; 
             width: 100%;
             height: 0px;
-            border-top: 2px dashed rgba(139, 90, 43, 0.4);
+            border-top: 2px dashed rgba(255, 255, 255, 0.6);
             z-index: 1;
         }
 
@@ -51,7 +53,7 @@
             top: 80px;
             width: 2px;
             height: 100%;
-            border-left: 2px dashed rgba(139, 90, 43, 0.4);
+            border-left: 2px dashed rgba(255, 255, 255, 0.5);
             pointer-events: none;
             z-index: 1;
             transform: translateX(-50%);
@@ -64,11 +66,41 @@
             height: auto;
             transform: translateX(-50%);
             pointer-events: none;
-            z-index: 5; /* Behind the fruit */
+            z-index: 5;
         }
 
-        /* Fruit canvas sits on top of the cloud */
         canvas { position: relative; z-index: 10; }
+
+        .bubble {
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 220, 150, 0.9), rgba(255, 140, 50, 0.6));
+            border: 4px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            box-shadow: inset -10px -10px 30px rgba(180, 80, 0, 0.3), 0 10px 20px rgba(0,0,0,0.2);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .bubble::before {
+            content: '';
+            position: absolute;
+            top: 15%; left: 20%;
+            width: 50px; height: 25px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transform: rotate(-25deg);
+        }
+
+        #score { font-size: 50px; line-height: 1; margin: 5px 0; }
+        .label-text { font-size: 24px; font-weight: bold; }
+        .sub-label { font-size: 14px; opacity: 0.9; margin-top: 5px; }
 
         #game-over-ui {
             position: absolute;
@@ -83,41 +115,41 @@
             text-align: center;
         }
 
-        #game-over-ui h1 { font-size: 60px; margin: 0; color: #ff6b6b; }
-
-        .side-panel { display: flex; flex-direction: column; gap: 20px; width: 200px; } 
-        
-        .info-box {
-            background: #fffbe6;
-            border: 6px solid #8b5a2b;
-            border-radius: 25px;
-            padding: 15px;
-            text-align: center;
-            color: #5d4037;
-            box-shadow: 5px 5px 0px #d7ccc8;
-        }
-        
-        #score { font-size: 36px; font-weight: bold; }
-        .label-text { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-
         #restart-btn {
-            padding: 18px 45px;
-            font-size: 24px;
-            background: #8b5a2b;
+            padding: 15px 40px;
+            font-size: 22px;
+            background: #ff8c32;
             color: white;
             border: none;
             border-radius: 50px;
             cursor: pointer;
-            margin-top: 30px;
+            margin-top: 20px;
             font-family: inherit;
-            box-shadow: 0 6px 0 #5d4037;
+            box-shadow: 0 5px 0 #b45000;
         }
-        #restart-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #5d4037; }
+
+        .evolution-guide {
+            width: 200px;
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            text-align: center;
+            color: white;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
 
     <div id="scaler">
+        <div class="bubble">
+            <div class="label-text">Score</div>
+            <div id="score">0</div>
+            <div class="sub-label">BEST SCORE</div>
+            <div id="best-score" style="font-size: 20px;">0</div>
+        </div>
+
         <div id="game-container">
             <div id="danger-line"></div>
             <div id="drop-line"></div>
@@ -125,30 +157,36 @@
             
             <div id="game-over-ui">
                 <h1>GAME OVER</h1>
-                <p style="font-size: 24px;">Score: <span id="final-score">0</span></p>
-                <button id="restart-btn" onclick="location.reload()">PLAY AGAIN</button>
+                <p>Score: <span id="final-score">0</span></p>
+                <button id="restart-btn" onclick="location.reload()">TRY AGAIN</button>
             </div>
         </div>
 
-        <div class="side-panel">
-            <div class="info-box">
-                <div class="label-text">SCORE</div>
-                <div id="score">0</div>
-            </div>
-            <div class="info-box">
-                <div class="label-text">NEXT</div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="bubble">
+                <div class="label-text" style="margin-bottom: 10px;">Next</div>
                 <canvas id="next-fruit-canvas" width="100" height="100"></canvas>
             </div>
-            <div class="info-box">
-                <div class="label-text">EVOLUTION</div>
-                <img src="evolution.png" style="width: 100%; border-radius: 10px;">
+            <div class="evolution-guide">
+                <div style="margin-bottom: 10px; font-weight: bold;">Evolution Guide</div>
+                <img src="evolution.png" style="width: 100%;">
             </div>
         </div>
     </div>
 
 <script>
-const { Engine, Render, Runner, World, Bodies, Body, Events, Composite } = Matter;
+const bgm = new Audio('Cat - tibita.mp3');
+bgm.loop = true;
+bgm.volume = 0.5;
 
+const dropSound = new Audio('drop.wav');
+const popSound = new Audio('pop.wav');
+
+window.addEventListener('mousedown', () => {
+    if (bgm.paused) bgm.play().catch(e => console.log("Audio blocked"));
+}, { once: true });
+
+const { Engine, Render, Runner, World, Bodies, Body, Events, Composite } = Matter;
 const engine = Engine.create();
 const world = engine.world;
 const width = 500;
@@ -156,13 +194,28 @@ const height = 750;
 const GAP_ADJUSTER = 1.25;
 const DANGER_Y = 95; 
 
-// Responsive scaling
+let score = 0;
+let bestScore = localStorage.getItem('suikaBestScore') || 0;
+document.getElementById('best-score').innerText = bestScore;
+
+// FIXED RESIZE LOGIC
 function handleResize() {
     const scaler = document.getElementById('scaler');
-    const totalContentWidth = width + 250;
-    const scale = Math.min(window.innerWidth / totalContentWidth, (window.innerHeight - 40) / height);
-    scaler.style.transform = scale < 1 ? `scale(${scale})` : `scale(1)`;
+    const container = document.body;
+    
+    // The target width of your UI is roughly 1100px (Container + Bubbles + Gaps)
+    const targetWidth = 1100;
+    const targetHeight = 850; // Total height including padding
+    
+    const scaleX = container.clientWidth / targetWidth;
+    const scaleY = container.clientHeight / targetHeight;
+    
+    // Use the smaller scale to ensure it fits both ways without clipping
+    const finalScale = Math.min(scaleX, scaleY, 1); // Max scale of 1
+    
+    scaler.style.transform = `scale(${finalScale})`;
 }
+
 window.addEventListener('resize', handleResize);
 handleResize();
 
@@ -197,7 +250,6 @@ World.add(world, [
 
 let currentFruit = null;
 let nextFruitIndex = Math.floor(Math.random() * 4);
-let score = 0;
 let canDrop = true;
 let isGameOver = false;
 let gameOverTimer = null;
@@ -208,11 +260,10 @@ function createFruit(x, y, index, isStatic = false) {
     
     const fruit = Bodies.circle(x, y, data.radius, {
         label: "fruit_" + index,
-        restitution: 0.4, // Bouncy pop
-        friction: 0.005,  // Slippery movement
+        restitution: 0.4, 
+        friction: 0.005,  
         frictionStatic: 0.001,
         frictionAir: 0.01,
-        slop: 0.05,
         isStatic: isStatic,
         render: { 
             sprite: { 
@@ -233,7 +284,7 @@ function updateNextPreview() {
     const img = new Image();
     img.src = FRUIT_DATA[nextFruitIndex].img;
     img.onload = () => {
-        const size = 60; 
+        const size = 70; 
         ctx.drawImage(img, (canvas.width-size)/2, (canvas.height-size)/2, size, size);
     };
 }
@@ -251,8 +302,13 @@ function spawnFruit() {
 window.addEventListener('mousemove', (e) => {
     if(isGameOver) return;
     const rect = document.getElementById('game-container').getBoundingClientRect();
-    const scale = rect.width / width;
-    let x = (e.clientX - rect.left) / scale;
+    
+    // Get current scale from the CSS transform to adjust mouse position correctly
+    const style = window.getComputedStyle(document.getElementById('scaler'));
+    const matrix = new WebKitCSSMatrix(style.transform);
+    const currentScale = matrix.a;
+
+    let x = (e.clientX - rect.left) / currentScale;
     x = Math.max(25, Math.min(width - 25, x));
     
     document.getElementById('cloud-sprite').style.left = x + "px";
@@ -266,6 +322,8 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('click', () => {
     if (currentFruit && canDrop && !isGameOver) {
+        dropSound.currentTime = 0;
+        dropSound.play();
         canDrop = false;
         Body.setStatic(currentFruit, false);
         setTimeout(spawnFruit, 800);
@@ -278,12 +336,19 @@ Events.on(engine, 'collisionStart', (event) => {
         if (bodyA.label && bodyA.label === bodyB.label && !bodyA.isStatic && !bodyB.isStatic) {
             const index = bodyA.fruitIndex;
             if (index < FRUIT_DATA.length - 1) {
+                popSound.currentTime = 0;
+                popSound.play();
                 const midX = (bodyA.position.x + bodyB.position.x) / 2;
                 const midY = (bodyA.position.y + bodyB.position.y) / 2;
                 World.remove(world, [bodyA, bodyB]);
                 World.add(world, createFruit(midX, midY, index + 1));
                 score += (index + 1) * 10;
                 document.getElementById('score').innerText = score;
+                if(score > bestScore) {
+                    bestScore = score;
+                    localStorage.setItem('suikaBestScore', bestScore);
+                    document.getElementById('best-score').innerText = bestScore;
+                }
             }
         }
     });
@@ -292,10 +357,7 @@ Events.on(engine, 'collisionStart', (event) => {
 Events.on(engine, 'afterUpdate', () => {
     if(isGameOver) return;
     const fruits = Composite.allBodies(world).filter(b => b.label.includes('fruit') && !b.isStatic);
-    
-    // Loss logic: checks if the whole fruit is above the danger line
     let isOverflowing = fruits.some(f => (f.position.y - f.circleRadius) < DANGER_Y);
-
     if (isOverflowing) {
         if (!gameOverTimer) {
             gameOverTimer = setTimeout(() => {
